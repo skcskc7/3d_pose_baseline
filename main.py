@@ -42,7 +42,7 @@ def main(opt):
     model = model.cuda()
     model.apply(weight_init)
     print(">>> total params: {:.2f}M".format(sum(p.numel() for p in model.parameters()) / 1000000.0))
-    criterion = nn.MSELoss(size_average=True).cuda()
+    criterion = nn.MSELoss(reduction='mean').cuda()
     optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
 
     # load ckpt
@@ -167,7 +167,8 @@ def train(train_loader, model, criterion, optimizer,
         if glob_step % lr_decay == 0 or glob_step == 1:
             lr_now = utils.lr_decay(optimizer, glob_step, lr_init, lr_decay, gamma)
         inputs = Variable(inps.cuda())
-        targets = Variable(tars.cuda(async=True))
+        targets = Variable(tars.cuda(non_blocking=True))
+        
 
         outputs = model(inputs)
 
@@ -177,7 +178,7 @@ def train(train_loader, model, criterion, optimizer,
         losses.update(loss.item(), inputs.size(0))
         loss.backward()
         if max_norm:
-            nn.utils.clip_grad_norm(model.parameters(), max_norm=1)
+            nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)
         optimizer.step()
 
         # update summary
@@ -210,7 +211,7 @@ def test(test_loader, model, criterion, stat_3d, procrustes=False):
 
     for i, (inps, tars) in enumerate(test_loader):
         inputs = Variable(inps.cuda())
-        targets = Variable(tars.cuda(async=True))
+        targets = Variable(tars.cuda(non_blocking=True))
 
         outputs = model(inputs)
 
